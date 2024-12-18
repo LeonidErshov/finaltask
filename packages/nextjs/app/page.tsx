@@ -1,71 +1,84 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import type { NextPage } from "next";
-import { useAccount } from "wagmi";
-import { BugAntIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { Address } from "~~/components/scaffold-eth";
+import { useState } from "react";
+import { useAccount, useContractRead, useContractWrite } from "wagmi";
+import { parseEther, formatEther } from "ethers";
+import deployedContracts from "../contracts/deployedContracts"; // Импорт данных контракта
 
-const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
+export default function Home() {
+  const { address: userAddress, isConnected } = useAccount();  // Получаем адрес пользователя и статус подключения
+
+  // Получаем адрес и ABI для контракта
+  const { address, abi } = deployedContracts[31337].PaymentContract;
+
+  // Инициализация контракта для чтения данных
+  const { data: balance } = useContractRead({
+    address: address,
+    abi: abi,
+    functionName: "getBalance",
+  });
+
+  // Инициализация контракта для записи данных
+  const { writeAsync, isLoading } = useContractWrite({
+    address: address,
+    abi: abi,
+    functionName: "withdraw",
+  });
+
+  const [withdrawAmount, setWithdrawAmount] = useState<number>(0);  // Состояние для хранения суммы вывода
+  const [recipient, setRecipient] = useState<string>("");  // Состояние для хранения адреса получателя
+  const [loading, setLoading] = useState<boolean>(false);  // Состояние загрузки
+
+  const handleWithdraw = async () => {
+    if (writeAsync && userAddress) {
+      setLoading(true);
+      try {
+        // Вызов функции с передачей аргументов
+        const tx = await writeAsync({
+          args: [parseEther(withdrawAmount.toString()), recipient],
+          gasLimit: 1000000,  // Фиксированный лимит газа
+        });
+
+        await tx.wait();  // Ожидаем завершения транзакции
+        alert("Withdrawal successful!");
+      } catch (error) {
+        console.error("Ошибка при выводе средств:", error);
+        alert("Error withdrawing funds. Please check the console for more details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
-    <>
-      <div className="flex items-center flex-col flex-grow pt-10">
-        <div className="px-5">
-          <h1 className="text-center">
-            <span className="block text-2xl mb-2">Welcome to</span>
-            <span className="block text-4xl font-bold">Scaffold-ETH 2</span>
-          </h1>
-          <div className="flex justify-center items-center space-x-2 flex-col sm:flex-row">
-            <p className="my-2 font-medium">Connected Address:</p>
-            <Address address={connectedAddress} />
-          </div>
-          <p className="text-center text-lg">
-            Get started by editing{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/nextjs/app/page.tsx
-            </code>
-          </p>
-          <p className="text-center text-lg">
-            Edit your smart contract{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              YourContract.sol
-            </code>{" "}
-            in{" "}
-            <code className="italic bg-base-300 text-base font-bold max-w-full break-words break-all inline-block">
-              packages/hardhat/contracts
-            </code>
-          </p>
-        </div>
+    <div>
+      <h1>Payment Contract</h1>
+      <p>Contract Balance: {balance ? formatEther(balance) : 0} ETH</p>
 
-        <div className="flex-grow bg-base-300 w-full mt-16 px-8 py-12">
-          <div className="flex justify-center items-center gap-12 flex-col sm:flex-row">
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <BugAntIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Tinker with your smart contract using the{" "}
-                <Link href="/debug" passHref className="link">
-                  Debug Contracts
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-            <div className="flex flex-col bg-base-100 px-10 py-10 text-center items-center max-w-xs rounded-3xl">
-              <MagnifyingGlassIcon className="h-8 w-8 fill-secondary" />
-              <p>
-                Explore your local transactions with the{" "}
-                <Link href="/blockexplorer" passHref className="link">
-                  Block Explorer
-                </Link>{" "}
-                tab.
-              </p>
-            </div>
-          </div>
+      {isConnected ? (
+        <div>
+          <input
+            type="text"
+            placeholder="Recipient Address"
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+          />
+          <input
+            type="number"
+            placeholder="Amount (ETH)"
+            value={withdrawAmount}
+            onChange={(e) => setWithdrawAmount(Number(e.target.value))}
+          />
+          <button
+            onClick={handleWithdraw}
+            disabled={loading || isLoading}
+          >
+            {loading || isLoading ? "Processing..." : "Withdraw"}
+          </button>
         </div>
-      </div>
-    </>
+      ) : (
+        <p>Please connect your wallet</p>
+      )}
+    </div>
   );
-};
-
-export default Home;
+}

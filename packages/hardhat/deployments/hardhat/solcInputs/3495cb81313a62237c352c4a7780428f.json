@@ -1,0 +1,36 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/YourContract.sol": {
+      "content": "// SPDX-License-Identifier: MIT\r\npragma solidity ^0.8.0;\r\n\r\ncontract PaymentContract {\r\n    address public owner;\r\n\r\n    event PaymentReceived(address indexed sender, uint256 amount);\r\n    event PaymentSent(address indexed recipient, uint256 amount);\r\n\r\n    constructor() {\r\n        owner = msg.sender;\r\n    }\r\n\r\n    // Function to receive payments\r\n    receive() external payable {\r\n        emit PaymentReceived(msg.sender, msg.value);\r\n    }\r\n\r\n    // Function to withdraw payments (only owner)\r\n    function withdraw(uint256 amount, address payable recipient) external {\r\n        require(msg.sender == owner, \"Only the owner can withdraw\");\r\n        require(address(this).balance >= amount, \"Insufficient balance\");\r\n\r\n        recipient.transfer(amount);\r\n        emit PaymentSent(recipient, amount);\r\n    }\r\n\r\n    // Function to check the contract's balance\r\n    function getBalance() external view returns (uint256) {\r\n        return address(this).balance;\r\n    }\r\n}\r\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "evmVersion": "paris",
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}
